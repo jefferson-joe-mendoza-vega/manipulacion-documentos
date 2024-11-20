@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OCR Rápido - Extraer Texto de Imágenes</title>
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@2.1.1/dist/tesseract.min.js"></script>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background-color: #f4f4f9;
+        }
+
+        .container {
+            text-align: center;
+            background: #ffffff;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+            width: 100%;
+            max-width: 400px;
+        }
+
+        h1 {
+            font-size: 1.5em;
+            margin-bottom: 20px;
+            color: #333;
+        }
+
+        input[type="file"] {
+            margin: 15px 0;
+        }
+
+        #output {
+            margin-top: 20px;
+            padding: 15px;
+            background: #eef;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            text-align: left;
+            overflow-y: auto;
+            max-height: 200px;
+            word-wrap: break-word;
+            font-size: 0.9em;
+        }
+
+        #progress {
+            margin-top: 10px;
+            font-size: 0.9em;
+            color: #555;
+        }
+
+        .copy-button {
+            margin-top: 10px;
+            padding: 10px 15px;
+            background-color: #007bff;
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1em;
+        }
+
+        .copy-button:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>OCR Rápido - Extraer Texto</h1>
+        <input type="file" id="imageInput" accept="image/png, image/jpeg, image/jpg">
+        <div id="progress"></div>
+        <div id="output"></div>
+        <button id="copyButton" class="copy-button" style="display: none;">Copiar Texto</button>
+    </div>
+
+    <script>
+        const processImage = async (file) => {
+            const progress = document.getElementById("progress");
+            const output = document.getElementById("output");
+            const copyButton = document.getElementById("copyButton");
+
+            progress.textContent = "Procesando imagen...";
+            output.textContent = "";
+            copyButton.style.display = "none";
+
+            try {
+                const worker = Tesseract.createWorker({
+                    logger: (m) => {
+                        if (m.status === "recognizing text") {
+                            progress.textContent = `Progreso: ${Math.round(m.progress * 100)}%`;
+                        }
+                    }
+                });
+
+                await worker.load(); // Cargar el worker
+                await worker.loadLanguage("spa"); // Idioma
+                await worker.initialize("spa"); // Inicializar
+                const { data: { text } } = await worker.recognize(file); // Reconocimiento OCR
+                await worker.terminate(); // Finalizar el worker
+
+                output.textContent = text || "No se encontró texto en la imagen.";
+                progress.textContent = "Procesamiento completo.";
+                copyButton.style.display = text ? "inline-block" : "none";
+            } catch (error) {
+                console.error("Error al procesar la imagen:", error);
+                output.textContent = "Ocurrió un error al extraer el texto.";
+                progress.textContent = "";
+            }
+        };
+
+        document.getElementById("imageInput").addEventListener("change", (event) => {
+            const file = event.target.files[0];
+            if (file) {
+                processImage(file);
+            }
+        });
+
+        document.getElementById("copyButton").addEventListener("click", () => {
+            const text = document.getElementById("output").textContent;
+            navigator.clipboard.writeText(text)
+                .then(() => alert("Texto copiado al portapapeles."))
+                .catch((err) => console.error("Error al copiar texto:", err));
+        });
+    </script>
+</body>
+</html>

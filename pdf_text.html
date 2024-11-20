@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Extracción de Texto</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f9;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        .container {
+            text-align: center;
+            background: #ffffff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            max-width: 500px;
+            width: 100%;
+        }
+
+        h1 {
+            font-size: 1.5em;
+            margin-bottom: 20px;
+        }
+
+        input[type="file"] {
+            margin: 20px 0;
+        }
+
+        .output {
+            margin-top: 20px;
+            padding: 10px;
+            background: #eef;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            overflow-y: auto;
+            max-height: 200px;
+            word-wrap: break-word;
+            text-align: left;
+        }
+
+        .copy-button {
+            margin-top: 10px;
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1em;
+        }
+
+        .copy-button:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Sube tu archivo y extrae el texto</h1>
+        <input type="file" id="fileInput" accept=".ppt,.pptx,.txt">
+        <div id="output" class="output"></div>
+        <button id="copyButton" class="copy-button" style="display: none;">Copiar Texto</button>
+    </div>
+    <script>
+        document.getElementById("fileInput").addEventListener("change", async (event) => {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const output = document.getElementById("output");
+            const copyButton = document.getElementById("copyButton");
+            output.textContent = "Procesando archivo...";
+            copyButton.style.display = "none";
+
+            try {
+                if (file.name.endsWith(".txt")) {
+                    // Leer archivos de texto simples
+                    const text = await file.text();
+                    output.textContent = text;
+                    copyButton.style.display = "inline-block";
+                } else if (file.name.endsWith(".pptx")) {
+                    // Leer archivos PPTX usando jszip
+                    const zip = new JSZip();
+                    const content = await zip.loadAsync(file);
+
+                    // Buscar las diapositivas y extraer texto
+                    const slides = Object.keys(content.files).filter((fileName) =>
+                        fileName.startsWith("ppt/slides/slide") && fileName.endsWith(".xml")
+                    );
+
+                    let extractedText = "";
+                    for (const slide of slides.sort()) {
+                        const slideContent = await content.file(slide).async("string");
+                        const matches = slideContent.match(/<a:t>(.*?)<\/a:t>/g); // Extraer contenido textual
+                        if (matches) {
+                            matches.forEach((match) => {
+                                extractedText += match.replace(/<\/?a:t>/g, "") + "\n";
+                            });
+                        }
+                        extractedText += "\n--- Fin de diapositiva ---\n\n";
+                    }
+
+                    output.textContent = extractedText || "No se encontró texto en las diapositivas.";
+                    copyButton.style.display = "inline-block";
+                } else {
+                    output.textContent = "Formato de archivo no compatible. Solo se admiten .txt, .pptx.";
+                }
+            } catch (error) {
+                output.textContent = "Ocurrió un error al procesar el archivo.";
+                console.error(error);
+            }
+        });
+
+        document.getElementById("copyButton").addEventListener("click", () => {
+            const output = document.getElementById("output");
+            const text = output.textContent;
+
+            // Copiar texto al portapapeles
+            navigator.clipboard.writeText(text)
+                .then(() => {
+                    alert("Texto copiado al portapapeles");
+                })
+                .catch((err) => {
+                    console.error("Error al copiar texto:", err);
+                });
+        });
+    </script>
+</body>
+</html>
+
