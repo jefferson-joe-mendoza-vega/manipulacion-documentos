@@ -32,8 +32,22 @@
             color: #333;
         }
 
+        #drop-area {
+            border: 2px dashed #007bff;
+            padding: 30px;
+            background-color: #eef7ff;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            cursor: pointer;
+        }
+
+        #drop-area:hover {
+            background-color: #d0e9ff;
+        }
+
         input[type="file"] {
             margin: 15px 0;
+            display: none;
         }
 
         #output {
@@ -74,6 +88,10 @@
 <body>
     <div class="container">
         <h1>OCR Rápido - Extraer Texto</h1>
+        <!-- Área de arrastre -->
+        <div id="drop-area">
+            Arrastra una imagen aquí o usa el botón para cargarla.
+        </div>
         <input type="file" id="imageInput" accept="image/png, image/jpeg, image/jpg">
         <div id="progress"></div>
         <div id="output"></div>
@@ -100,9 +118,17 @@
                 });
 
                 await worker.load(); // Cargar el worker
-                await worker.loadLanguage("spa"); // Idioma
-                await worker.initialize("spa"); // Inicializar
-                const { data: { text } } = await worker.recognize(file); // Reconocimiento OCR
+                await worker.loadLanguage("spa"); // Cargar solo el idioma español
+                await worker.initialize("spa"); // Inicializar con el idioma español
+
+                // Mejoras para mejorar la precisión y reconocer caracteres especiales:
+                const { data: { text } } = await worker.recognize(file, {
+                    tessedit_char_whitelist: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyzáéíóúÁÉÍÓÚ0123456789@#&$%()[]{}<>-_+=:;,.!?*",
+                    preserve_interword_spaces: "1",
+                    text_only: true,
+                    lang: 'spa' // Solo español
+                });
+
                 await worker.terminate(); // Finalizar el worker
 
                 output.textContent = text || "No se encontró texto en la imagen.";
@@ -119,6 +145,40 @@
             const file = event.target.files[0];
             if (file) {
                 processImage(file);
+            }
+        });
+
+        // Función para manejar el arrastre de archivos
+        const dropArea = document.getElementById("drop-area");
+
+        dropArea.addEventListener("dragover", (event) => {
+            event.preventDefault();
+            dropArea.style.backgroundColor = "#d0e9ff";
+        });
+
+        dropArea.addEventListener("dragleave", () => {
+            dropArea.style.backgroundColor = "#eef7ff";
+        });
+
+        dropArea.addEventListener("drop", (event) => {
+            event.preventDefault();
+            dropArea.style.backgroundColor = "#eef7ff";
+
+            const file = event.dataTransfer.files[0];
+            if (file) {
+                processImage(file);
+            }
+        });
+
+        // Pegar imagen desde el portapapeles
+        document.addEventListener("paste", (event) => {
+            const items = event.clipboardData.items;
+            for (let i = 0; i < items.length; i++) {
+                if (items[i].type.startsWith("image")) {
+                    const file = items[i].getAsFile();
+                    processImage(file);
+                    break;
+                }
             }
         });
 
