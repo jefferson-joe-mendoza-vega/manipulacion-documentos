@@ -111,14 +111,46 @@
 
                     output.textContent = extractedText || "No se encontró texto en las diapositivas.";
                     copyButton.style.display = "inline-block";
+                } else if (file.name.endsWith(".ppt")) {
+                    // Para archivos .ppt (PPT antiguos)
+                    const fileReader = new FileReader();
+                    fileReader.onload = async function(e) {
+                        const data = e.target.result;
+                        const extractedText = await extractTextFromPpt(data);
+                        output.textContent = extractedText || "No se encontró texto en las diapositivas.";
+                        copyButton.style.display = "inline-block";
+                    };
+                    fileReader.readAsArrayBuffer(file);
                 } else {
-                    output.textContent = "Formato de archivo no compatible. Solo se admiten .txt, .pptx.";
+                    output.textContent = "Formato de archivo no compatible. Solo se admiten .txt, .pptx, .ppt.";
                 }
             } catch (error) {
                 output.textContent = "Ocurrió un error al procesar el archivo.";
                 console.error(error);
             }
         });
+
+        // Función para extraer texto de archivos .ppt
+        async function extractTextFromPpt(arrayBuffer) {
+            // Implementación para extraer texto de archivos PPT antiguos (usando alguna librería como pptx-parser)
+            try {
+                const pptParser = await import("https://cdn.jsdelivr.net/npm/pptx-parser@1.1.2/dist/pptx-parser.min.js");
+                const ppt = new pptParser.PptxParser();
+                await ppt.load(arrayBuffer);
+                const slides = ppt.getSlides();
+                let extractedText = "";
+                slides.forEach(slide => {
+                    slide.texts.forEach(text => {
+                        extractedText += text.text + "\n";
+                    });
+                    extractedText += "\n--- Fin de diapositiva ---\n\n";
+                });
+                return extractedText;
+            } catch (error) {
+                console.error("Error al procesar el archivo PPT:", error);
+                return "Error al extraer texto de archivo PPT.";
+            }
+        }
 
         document.getElementById("copyButton").addEventListener("click", () => {
             const output = document.getElementById("output");
@@ -136,4 +168,3 @@
     </script>
 </body>
 </html>
-
